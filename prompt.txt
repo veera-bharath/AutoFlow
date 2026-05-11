@@ -1,0 +1,114 @@
+You are a senior Electron + TypeScript architect.
+
+Build a production-ready desktop Automation/Routines application called "AutoFlow" using:
+- Electron
+- TypeScript
+- Vite
+- Vanilla HTML/CSS/TS (NO React or frameworks)
+
+Architecture:
+- Strict separation: main, preload, renderer
+- Secure IPC via contextBridge (no nodeIntegration)
+- Modular folders: automation/, core/, ui/
+
+Core Features:
+1. Folder watcher using chokidar
+2. Trigger: file added
+3. Action: move file based on extension rules
+4. Real-time log panel in UI
+5. Start/Stop automation controls
+
+Automation System:
+- Rule-based engine:
+  {
+    id,
+    trigger: "file_added",
+    conditions: { extension: ".pdf" },
+    action: { type: "move", target: "/PDFs" }
+  }
+
+Requirements:
+- Strong TypeScript types
+- Async-safe file handling
+- Error handling + logging system
+- Clean minimal UI using DOM APIs only
+
+Output:
+- Full folder structure
+- All config files (package.json, tsconfig, vite)
+- main.ts, preload.ts, renderer.ts
+- watcher.ts, actions.ts, ruleEngine.ts
+- index.html + minimal CSS
+
+Keep code clean, extensible, and production-ready.
+
+
+----------------------------------------------------------------------------------------------------
+
+You are improving an Electron + TypeScript automation app.
+
+Design and implement an advanced rule engine and workflow system.
+
+Requirements:
+- Support multiple triggers:
+  - file_added
+  - time_based (cron-like)
+- Conditions:
+  - file extension
+  - filename contains
+  - file size
+- Actions:
+  - move file
+  - rename file
+  - delete file
+  - run shell command
+
+System Design:
+- Rules stored as JSON
+- Workflow = sequence of rules
+- Engine evaluates rules dynamically
+
+Implementation:
+- TypeScript interfaces for triggers, conditions, actions
+- Rule processor with async pipeline
+- Validation system for rules
+- Logging of rule execution
+
+Provide:
+- Example rules JSON
+- Core engine implementation
+- Integration with Electron main process
+
+Focus on scalability and extensibility.
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+Refactor my Electron Automation Builder to support a plugin system.
+
+Goal:
+Allow third-party extensions without modifying core code.
+
+Requirements:
+- Define interfaces:
+  TriggerPlugin
+  ActionPlugin
+- Plugins loaded dynamically from /plugins folder
+- Each plugin exports metadata + execution logic
+- Runtime registration system
+
+Features:
+- Load/unload plugins
+- Plugin error isolation
+- Logging per plugin
+
+Provide:
+- Plugin loader implementation
+- Base interfaces (TypeScript)
+- Example plugins:
+  - Notification plugin
+  - Shell command plugin
+
+Ensure:
+- Type safety
+- Clean architecture
+- Easy future extension

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    />
+    <title>AutoFlow</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <div class="app-header__brand">
+          <span class="app-header__logo">⚡</span>
+          <h1 class="app-header__title">AutoFlow</h1>
+        </div>
+        <span id="status-badge" class="badge badge--idle">Idle</span>
+      </header>
+
+      <main class="app-main">
+        <aside class="panel panel--left">
+          <section id="control-panel"></section>
+          <section id="rule-editor"></section>
+        </aside>
+
+        <section class="panel panel--right" id="log-panel"></section>
+      </main>
+    </div>
+
+    <script type="module" src="./src/renderer.ts"></script>
+  </body>
+</html>
