@@ -1,10 +1,14 @@
-import { IpcMain, BrowserWindow, dialog } from 'electron'
+import { IpcMain, BrowserWindow, dialog, shell } from 'electron'
 import { RuleEngine } from '../../automation/ruleEngine'
 import { ConfigManager } from '../../core/config'
 import { Logger } from '../../core/logger'
 import type { Rule, WatcherConfig } from '@shared/types'
 
 let ruleEngine: RuleEngine | null = null
+
+const trashFn = async (filePath: string): Promise<void> => {
+  await shell.trashItem(filePath)
+}
 
 export function registerIpcHandlers(ipcMain: IpcMain, win: BrowserWindow): void {
   const config = new ConfigManager()
@@ -47,7 +51,7 @@ export function registerIpcHandlers(ipcMain: IpcMain, win: BrowserWindow): void 
       ruleEngine = null
     }
     const rules = await config.loadRules()
-    ruleEngine = new RuleEngine(rules, logger)
+    ruleEngine = new RuleEngine(rules, logger, trashFn)
     await ruleEngine.start(watcherConfig.watchPath)
     if (!win.isDestroyed()) {
       win.webContents.send('autoflow:status-change', 'running')
