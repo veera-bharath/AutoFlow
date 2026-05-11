@@ -1,19 +1,56 @@
-export type RuleTriggerType = 'file_added'
+export type TriggerType = 'file_added' | 'cron'
+
+export interface FileTrigger {
+  type: 'file_added'
+}
+
+export interface CronTrigger {
+  type: 'cron'
+  expression: string
+}
+
+export type Trigger = FileTrigger | CronTrigger
+
+export interface Conditions {
+  watchPath: string
+  extension?: string
+  filenameContains?: string  // legacy — kept for migration
+  filenameRegex?: string
+  minSize?: number           // bytes
+  maxSize?: number           // bytes
+  olderThanDays?: number
+  newerThanDays?: number
+}
+
+export interface MoveAction {
+  type: 'move'
+  targetPath: string
+}
+
+export interface RenameAction {
+  type: 'rename'
+  pattern: string            // tokens: {name} {ext} {date} {datetime}
+}
+
+export interface DeleteAction {
+  type: 'delete'
+  permanent?: boolean
+}
+
+export interface ShellAction {
+  type: 'shell'
+  command: string            // tokens: {filePath} {watchPath}
+}
+
+export type Action = MoveAction | RenameAction | DeleteAction | ShellAction
 
 export interface Rule {
   id: string
   name: string
   enabled: boolean
-  trigger: { type: RuleTriggerType }
-  conditions: {
-    watchPath: string
-    extension?: string
-    filenameContains?: string
-  }
-  action: {
-    type: 'move'
-    targetPath: string
-  }
+  trigger: Trigger
+  conditions: Conditions
+  workflow: Action[]
 }
 
 export type WatcherStatus = 'idle' | 'running' | 'error'
