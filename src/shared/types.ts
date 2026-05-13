@@ -1,4 +1,4 @@
-export type TriggerType = 'file_added' | 'cron'
+export type TriggerType = 'file_added' | 'cron' | 'plugin'
 
 export interface FileTrigger {
   type: 'file_added'
@@ -9,7 +9,12 @@ export interface CronTrigger {
   expression: string
 }
 
-export type Trigger = FileTrigger | CronTrigger
+export interface PluginTrigger {
+  type: 'plugin'
+  pluginType: string
+}
+
+export type Trigger = FileTrigger | CronTrigger | PluginTrigger
 
 export interface Conditions {
   watchPath: string
@@ -42,7 +47,13 @@ export interface ShellAction {
   command: string            // tokens: {filePath} {watchPath}
 }
 
-export type Action = MoveAction | RenameAction | DeleteAction | ShellAction
+export interface PluginAction {
+  type: 'plugin'
+  pluginType: string
+  params?: Record<string, unknown>
+}
+
+export type Action = MoveAction | RenameAction | DeleteAction | ShellAction | PluginAction
 
 export interface Rule {
   id: string
@@ -68,6 +79,34 @@ export interface WatcherConfig {
   watchPath: string
 }
 
+// ── Plugin system ────────────────────────────────────────────────
+
+export interface TriggerPlugin {
+  type: string
+  name: string
+  version: string
+  start(emit: (filePath: string) => void): void
+  stop(): void
+}
+
+export interface ActionPlugin {
+  type: string
+  name: string
+  version: string
+  execute(filePath: string, params: Record<string, unknown>): Promise<string | null>
+}
+
+export interface PluginMeta {
+  name: string
+  version: string
+  kind: 'trigger' | 'action'
+  pluginType: string
+  status: 'active' | 'error'
+  error?: string
+}
+
+// ── Renderer API ─────────────────────────────────────────────────
+
 export interface AutoFlowAPI {
   startWatcher: (config: WatcherConfig) => Promise<void>
   stopWatcher: () => Promise<void>
@@ -76,6 +115,9 @@ export interface AutoFlowAPI {
   updateRule: (rule: Rule) => Promise<void>
   getRules: () => Promise<Rule[]>
   selectDirectory: () => Promise<string | null>
+  getPlugins: () => Promise<PluginMeta[]>
+  openPluginsFolder: () => Promise<void>
   onLog: (cb: (entry: LogEntry) => void) => () => void
   onStatusChange: (cb: (status: WatcherStatus) => void) => () => void
+  onPluginsChanged: (cb: (plugins: PluginMeta[]) => void) => () => void
 }

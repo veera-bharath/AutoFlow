@@ -1,4 +1,4 @@
-import type { Rule, Trigger, Action, Conditions, CronTrigger } from '@shared/types'
+import type { Rule, Trigger, Action, Conditions, CronTrigger, PluginTrigger, PluginMeta } from '@shared/types'
 
 type OnRulesChange = (rules: Rule[]) => void
 
@@ -16,6 +16,51 @@ export class RuleEditor {
   setRules(rules: Rule[]): void {
     this.rules = rules
     this.renderList()
+  }
+
+  updatePluginOptions(plugins: PluginMeta[]): void {
+    const form = this.container.querySelector<HTMLFormElement>('#rule-form')
+    if (!form) return
+
+    const triggerSelect = form.querySelector<HTMLSelectElement>('#rule-trigger')!
+    const actionSelect = form.querySelector<HTMLSelectElement>('#rule-action-type')!
+    const pluginTriggerSelect = form.querySelector<HTMLSelectElement>('#rule-plugin-trigger-type')!
+    const pluginActionSelect = form.querySelector<HTMLSelectElement>('#rule-plugin-action-type')!
+
+    const triggerPlugins = plugins.filter((p) => p.kind === 'trigger' && p.status === 'active')
+    const actionPlugins = plugins.filter((p) => p.kind === 'action' && p.status === 'active')
+
+    // Update trigger dropdown: add/remove plugin option
+    const hasPluginTriggerOpt = !!triggerSelect.querySelector('option[value="plugin"]')
+    if (triggerPlugins.length > 0 && !hasPluginTriggerOpt) {
+      const opt = document.createElement('option')
+      opt.value = 'plugin'
+      opt.textContent = 'Plugin Trigger'
+      triggerSelect.appendChild(opt)
+    } else if (triggerPlugins.length === 0 && hasPluginTriggerOpt) {
+      triggerSelect.querySelector('option[value="plugin"]')?.remove()
+    }
+
+    // Populate plugin trigger sub-dropdown
+    pluginTriggerSelect.innerHTML = triggerPlugins
+      .map((p) => `<option value="${this.escapeHtml(p.pluginType)}">${this.escapeHtml(p.name)} (${this.escapeHtml(p.pluginType)})</option>`)
+      .join('')
+
+    // Update action dropdown: add/remove plugin option
+    const hasPluginActionOpt = !!actionSelect.querySelector('option[value="plugin"]')
+    if (actionPlugins.length > 0 && !hasPluginActionOpt) {
+      const opt = document.createElement('option')
+      opt.value = 'plugin'
+      opt.textContent = 'Plugin Action'
+      actionSelect.appendChild(opt)
+    } else if (actionPlugins.length === 0 && hasPluginActionOpt) {
+      actionSelect.querySelector('option[value="plugin"]')?.remove()
+    }
+
+    // Populate plugin action sub-dropdown
+    pluginActionSelect.innerHTML = actionPlugins
+      .map((p) => `<option value="${this.escapeHtml(p.pluginType)}">${this.escapeHtml(p.name)} (${this.escapeHtml(p.pluginType)})</option>`)
+      .join('')
   }
 
   private render(): void {
@@ -39,6 +84,10 @@ export class RuleEditor {
           <div class="form-field" id="cron-field" style="display:none">
             <label class="form-label" for="rule-cron">Cron Expression</label>
             <input class="input" type="text" id="rule-cron" placeholder="0 9 * * *" />
+          </div>
+          <div class="form-field" id="plugin-trigger-field" style="display:none">
+            <label class="form-label" for="rule-plugin-trigger-type">Plugin Trigger</label>
+            <select class="input" id="rule-plugin-trigger-type"></select>
           </div>
         </div>
 
@@ -126,6 +175,17 @@ export class RuleEditor {
           <div class="form-hint">Tokens: {filePath} {watchPath}</div>
         </div>
 
+        <div id="action-plugin-fields" style="display:none">
+          <div class="form-field">
+            <label class="form-label" for="rule-plugin-action-type">Plugin Action</label>
+            <select class="input" id="rule-plugin-action-type"></select>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="rule-plugin-params">Params (JSON)</label>
+            <input class="input" type="text" id="rule-plugin-params" placeholder='{"key": "value"}' />
+          </div>
+        </div>
+
         <button type="submit" class="btn btn--primary btn--full">+ Add Rule</button>
       </form>
       <ul id="rule-list" class="rule-list"></ul>
@@ -162,14 +222,17 @@ export class RuleEditor {
 
   private updateTriggerVisibility(form: HTMLElement): void {
     const triggerType = (form.querySelector('#rule-trigger') as HTMLSelectElement).value
-    const isCron = triggerType === 'cron'
-    ;(form.querySelector('#cron-field') as HTMLElement).style.display = isCron ? '' : 'none'
-    ;(form.querySelector('#age-fields') as HTMLElement).style.display = isCron ? '' : 'none'
+    ;(form.querySelector('#cron-field') as HTMLElement).style.display =
+      triggerType === 'cron' ? '' : 'none'
+    ;(form.querySelector('#plugin-trigger-field') as HTMLElement).style.display =
+      triggerType === 'plugin' ? '' : 'none'
+    ;(form.querySelector('#age-fields') as HTMLElement).style.display =
+      triggerType === 'cron' ? '' : 'none'
   }
 
   private updateActionVisibility(form: HTMLElement): void {
     const actionType = (form.querySelector('#rule-action-type') as HTMLSelectElement).value
-    for (const t of ['move', 'rename', 'delete', 'shell']) {
+    for (const t of ['move', 'rename', 'delete', 'shell', 'plugin']) {
       const el = form.querySelector<HTMLElement>(`#action-${t}-fields`)!
       el.style.display = t === actionType ? '' : 'none'
     }
@@ -197,20 +260,25 @@ export class RuleEditor {
     const triggerType = (form.querySelector('#rule-trigger') as HTMLSelectElement).value as
       | 'file_added'
       | 'cron'
+      | 'plugin'
     const actionType = (form.querySelector('#rule-action-type') as HTMLSelectElement).value as
       | 'move'
       | 'rename'
       | 'delete'
       | 'shell'
+      | 'plugin'
 
-    const trigger: Trigger =
-      triggerType === 'cron'
-        ? { type: 'cron', expression: get('rule-cron') }
-        : { type: 'file_added' }
-
-    if (trigger.type === 'cron' && !(trigger as CronTrigger).expression) {
-      alert('Cron expression is required for scheduled rules.')
-      return
+    let trigger: Trigger
+    if (triggerType === 'cron') {
+      const expression = get('rule-cron')
+      if (!expression) { alert('Cron expression is required.'); return }
+      trigger = { type: 'cron', expression }
+    } else if (triggerType === 'plugin') {
+      const pluginType = (form.querySelector('#rule-plugin-trigger-type') as HTMLSelectElement).value
+      if (!pluginType) { alert('Select a plugin trigger type.'); return }
+      trigger = { type: 'plugin', pluginType }
+    } else {
+      trigger = { type: 'file_added' }
     }
 
     const minSizeKB = getNum('rule-min-size')
@@ -244,13 +312,19 @@ export class RuleEditor {
     } else if (actionType === 'delete') {
       const permanent = (form.querySelector('#rule-delete-permanent') as HTMLInputElement).checked
       action = { type: 'delete', permanent }
-    } else {
+    } else if (actionType === 'shell') {
       const command = get('rule-shell-command')
-      if (!command) {
-        alert('Command is required for shell action.')
-        return
-      }
+      if (!command) { alert('Command is required for shell action.'); return }
       action = { type: 'shell', command }
+    } else {
+      const pluginType = (form.querySelector('#rule-plugin-action-type') as HTMLSelectElement).value
+      if (!pluginType) { alert('Select a plugin action type.'); return }
+      const paramsRaw = get('rule-plugin-params')
+      let params: Record<string, unknown> = {}
+      if (paramsRaw) {
+        try { params = JSON.parse(paramsRaw) } catch { alert('Params must be valid JSON.'); return }
+      }
+      action = { type: 'plugin', pluginType, params }
     }
 
     const rule: Rule = {
@@ -302,6 +376,7 @@ export class RuleEditor {
 
   private describeTrigger(rule: Rule): string {
     if (rule.trigger.type === 'cron') return `cron: ${rule.trigger.expression}`
+    if (rule.trigger.type === 'plugin') return `plugin: ${(rule.trigger as PluginTrigger).pluginType}`
     return 'file added'
   }
 
@@ -313,6 +388,7 @@ export class RuleEditor {
       case 'rename': return `rename: ${first.pattern}`
       case 'delete': return first.permanent ? 'delete (permanent)' : 'delete (trash)'
       case 'shell':  return `shell: ${first.command.length > 28 ? first.command.slice(0, 28) + '…' : first.command}`
+      case 'plugin': return `plugin: ${first.pluginType}`
     }
   }
 
